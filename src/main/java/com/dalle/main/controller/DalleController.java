@@ -132,7 +132,7 @@ public class DalleController implements Initializable {
 
   @FXML
   private void onGitHubLinkClick() {
-    String link = "https://github.com/wakeisle9933";
+    String link = "https://github.com/wakeisle9933/dalle";
     try {
       Desktop.getDesktop().browse(new URI(link));
     } catch (IOException | URISyntaxException e) {
