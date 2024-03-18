@@ -1,4 +1,4 @@
-module com.example.demo {
+module com.dalle.main {
   requires javafx.controls;
   requires javafx.fxml;
   requires java.desktop;
