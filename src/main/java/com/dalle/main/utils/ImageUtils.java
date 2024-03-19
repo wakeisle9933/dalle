@@ -25,7 +25,7 @@ public class ImageUtils {
       fileChooser.setTitle("Save Image");
       fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PNG", "*.png"));
       fileChooser.setInitialDirectory(AppConfig.getFolder());
-      String timeStamp = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
+      String timeStamp = new SimpleDateFormat("yyyyMMddHHmmssSSS").format(new Date());
       String defaultFileName = "generated_image_" + timeStamp + ".png";
       fileChooser.setInitialFileName(defaultFileName); // 기본 파일 이름 설정
       File file = fileChooser.showSaveDialog(createdImage.getScene().getWindow());

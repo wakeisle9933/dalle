@@ -1,8 +1,12 @@
 package com.dalle.main.serviceImpl;
 
+import static com.dalle.main.utils.LogUtils.logException;
+import static com.dalle.main.utils.LogUtils.setupLogger;
+
 import com.dalle.main.dto.DalleRequestDto;
 import com.dalle.main.model.AppConfig;
 import com.dalle.main.service.DalleService;
+import com.dalle.main.utils.LogUtils;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -14,6 +18,8 @@ import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Optional;
@@ -25,6 +31,7 @@ import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.image.Image;
 import javax.imageio.ImageIO;
+import javax.net.ssl.SSLContext;
 import javax.swing.JFileChooser;
 
 public class DalleServiceImpl implements DalleService {
@@ -63,7 +70,9 @@ public class DalleServiceImpl implements DalleService {
     }
 
     HttpRequest request;
+
     try {
+
       request = HttpRequest.newBuilder()
           .uri(new URI("https://api.openai.com/v1/images/generations"))
           .header("Content-Type", "application/json")
@@ -71,6 +80,7 @@ public class DalleServiceImpl implements DalleService {
           .POST(HttpRequest.BodyPublishers.ofString(requestBody))
           .build();
     } catch (URISyntaxException e) {
+      LogUtils.logException(e);
       e.printStackTrace();
       return;
     }
@@ -80,36 +90,59 @@ public class DalleServiceImpl implements DalleService {
     dalleRequestDto.getCreatedImage().setVisible(false);
     dalleRequestDto.getLoadingIndicator().setVisible(true);
 
-    HttpClient client = HttpClient.newHttpClient();
-    client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-        .thenApply(HttpResponse::body)
-        .thenApply(responseBody -> {
-          Gson gson = new Gson();
-          JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
-          JsonArray dataArray = jsonObject.getAsJsonArray("data");
-          return dataArray.get(0).getAsJsonObject().get("url").getAsString();
-        })
-        .thenAccept(imageUrl -> {
-          Image image = new Image(imageUrl);
-          dalleRequestDto.getCreatedImage().setImage(image);
-          dalleRequestDto.getLoadingIndicator().setVisible(false);
-          dalleRequestDto.getCreatedImage().setManaged(true);
-          dalleRequestDto.getCreatedImage().setVisible(true);
-          // 이미지 저장
-          String timeStamp = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
-          String fileName = "generated_image_" + timeStamp + ".png";
-          File file = new File(AppConfig.getFolder(), fileName);
-          try {
-            ImageIO.write(SwingFXUtils.fromFXImage(image, null), "png", file);
-          } catch (IOException e) {
-            e.printStackTrace();
-          }
-        })
-        .exceptionally(ex -> {
-          ex.printStackTrace();
-          return null;
-        })
-        .whenComplete((result, ex) -> dalleRequestDto.getLoadingIndicator().setManaged(false)); // 로딩 인디케이터 숨김
+    try {
+      SSLContext sslContext = SSLContext.getInstance("TLSv1.2");
+      sslContext.init(null, null, null);
+      HttpClient client = HttpClient.newBuilder()
+          .sslContext(sslContext)
+          .build();
+
+      client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+          .thenApply(HttpResponse::body)
+          .thenApply(responseBody -> {
+            if (!responseBody.isEmpty()) {
+              Gson gson = new Gson();
+              JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
+              JsonArray dataArray = jsonObject.getAsJsonArray("data");
+              return dataArray.get(0).getAsJsonObject().get("url").getAsString();
+            } else {
+              LogUtils.writeLog("The responseBody is empty.");
+              return "";
+            }
+          })
+          .thenAccept(imageUrl -> {
+            if (!imageUrl.isEmpty()) {
+              LogUtils.writeLog("이미지 URL: " + imageUrl);
+              Image image = new Image(imageUrl);
+              dalleRequestDto.getCreatedImage().setImage(image);
+              dalleRequestDto.getLoadingIndicator().setVisible(false);
+              dalleRequestDto.getCreatedImage().setManaged(true);
+              dalleRequestDto.getCreatedImage().setVisible(true);
+              String timeStamp = new SimpleDateFormat("yyyyMMddHHmmssSSS").format(new Date());
+              String fileName = "generated_image_" + timeStamp + ".png";
+              File file = new File(AppConfig.getFolder(), fileName);
+              try {
+                ImageIO.write(SwingFXUtils.fromFXImage(image, null), "png", file);
+              } catch (IOException e) {
+                LogUtils.logException(e);
+              }
+            } else {
+              LogUtils.writeLog("The image URL is empty.");
+            }
+          })
+          .exceptionally(ex -> {
+            LogUtils.writeLog(ex.getMessage());
+            return null;
+          })
+          .whenComplete((result, ex) -> {
+            if (ex != null) {
+              LogUtils.writeLog(ex.getMessage());
+            }
+            dalleRequestDto.getLoadingIndicator().setManaged(false);
+          });
+    } catch (NoSuchAlgorithmException | KeyManagementException e) {
+      LogUtils.logException(e);
+    } // 로딩 인디케이터 숨김
   }
 
   @FXML

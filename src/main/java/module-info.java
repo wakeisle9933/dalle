@@ -5,6 +5,7 @@ module com.dalle.main {
   requires java.net.http;
   requires com.google.gson;
   requires javafx.swing;
+  requires java.logging;
 
   opens com.dalle.main to javafx.fxml;
   exports com.dalle.main;
