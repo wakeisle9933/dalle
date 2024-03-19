@@ -1,8 +1,5 @@
 package com.dalle.main.serviceImpl;
 
-import static com.dalle.main.utils.LogUtils.logException;
-import static com.dalle.main.utils.LogUtils.setupLogger;
-
 import com.dalle.main.dto.DalleRequestDto;
 import com.dalle.main.model.AppConfig;
 import com.dalle.main.service.DalleService;
