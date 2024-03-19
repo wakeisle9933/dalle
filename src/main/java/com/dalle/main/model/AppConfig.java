@@ -4,54 +4,81 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.Properties;
 
 public class AppConfig {
 
   private static final String PROPERTIES_FILE = "config.properties";
 
-  public static String getApiCode() {
-    try (FileInputStream input = new FileInputStream(PROPERTIES_FILE)) {
-      Properties prop = new Properties();
-      prop.load(input);
-      if(prop.getProperty("apiCode") == null || prop.getProperty("apiCode").isEmpty()) {
-        return null;
-      } else {
-        return prop.getProperty("apiCode");
+  private static Properties loadProperties() throws IOException {
+    Properties prop = new Properties();
+    Path configPath = getConfigPath();
+    if (Files.exists(configPath)) {
+      try (InputStream input = Files.newInputStream(configPath)) {
+        prop.load(input);
       }
+    } else {
+      try (InputStream input = AppConfig.class.getClassLoader().getResourceAsStream(PROPERTIES_FILE)) {
+        if (input != null) {
+          prop.load(input);
+          saveProperties(prop);
+        } else {
+          // config.properties 파일이 없는 경우, 기본 속성을 설정합니다.
+          prop.setProperty("apiCode", "");
+          prop.setProperty("folder", System.getProperty("user.home") + "/Desktop");
+          saveProperties(prop);
+        }
+      }
+    }
+    return prop;
+  }
+
+  private static void saveProperties(Properties prop) throws IOException {
+    Path configPath = getConfigPath();
+    Path parentPath = configPath.getParent();
+    if (parentPath != null) {
+      Files.createDirectories(parentPath);
+    }
+    try (FileOutputStream output = new FileOutputStream(configPath.toFile())) {
+      prop.store(output, null);
+    }
+  }
+
+  private static Path getConfigPath() {
+    String userHome = System.getProperty("user.home");
+    Path configPath = Paths.get(userHome, "AppData", "Roaming", "Dalle", PROPERTIES_FILE);
+    return configPath;
+  }
+
+  public static String getApiCode() {
+    try {
+      Properties prop = loadProperties();
+      return prop.getProperty("apiCode", "");
     } catch (IOException ex) {
       ex.printStackTrace();
     }
-    return null;
+    return "";
   }
 
   public static void setApiCode(String newApiCode) {
-    Properties prop = new Properties();
-    try (FileInputStream in = new FileInputStream(PROPERTIES_FILE)) {
-      prop.load(in);
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-    // folder 값을 업데이트합니다.
-    prop.setProperty("apiCode", newApiCode);
-
-    // 변경된 프로퍼티를 다시 파일에 저장합니다.
-    try (FileOutputStream output = new FileOutputStream(PROPERTIES_FILE)) {
-      prop.store(output, null);
+    try {
+      Properties prop = loadProperties();
+      prop.setProperty("apiCode", newApiCode);
+      saveProperties(prop);
     } catch (IOException ex) {
       ex.printStackTrace();
     }
   }
 
   public static File getFolder() {
-    try (FileInputStream input = new FileInputStream(PROPERTIES_FILE)) {
-      Properties prop = new Properties();
-      prop.load(input);
-      if(prop.getProperty("folder") == null || prop.getProperty("folder").isEmpty()) {
-        return new File(System.getProperty("user.home") + "/Desktop");
-      } else {
-        return new File(prop.getProperty("folder"));
-      }
+    try {
+      Properties prop = loadProperties();
+      return new File(prop.getProperty("folder", System.getProperty("user.home") + "/Desktop"));
     } catch (IOException ex) {
       ex.printStackTrace();
     }
@@ -59,18 +86,10 @@ public class AppConfig {
   }
 
   public static void setFolder(File newFolderLocation) {
-    Properties prop = new Properties();
-    try (FileInputStream in = new FileInputStream(PROPERTIES_FILE)) {
-      prop.load(in);
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-    // folder 값을 업데이트합니다.
-    prop.setProperty("folder", newFolderLocation.getAbsolutePath());
-
-    // 변경된 프로퍼티를 다시 파일에 저장합니다.
-    try (FileOutputStream output = new FileOutputStream(PROPERTIES_FILE)) {
-      prop.store(output, null);
+    try {
+      Properties prop = loadProperties();
+      prop.setProperty("folder", newFolderLocation.getAbsolutePath());
+      saveProperties(prop);
     } catch (IOException ex) {
       ex.printStackTrace();
     }
